@@ -1,0 +1,9 @@
+pandas==1.4.3
+discord.py==2.2.3
+async-timeout==4.0.2
+DateTime==4.5
+ipdb==0.13.9
+pytz==2022.1
+gspread==5.9.0
+google-auth==2.19.0
+google-auth-oauthlib==1.0.0
