@@ -1,23 +1,16 @@
 import re
-import os
-import sys
 import asyncio
 import discord
 from discord.ext import commands
 from datetime import datetime
 
-sys.path.insert(0, os.getcwd()+"/API")
-import api
-import emoji
-import buttonConfig as BC
-from core.classes import cog_extension
-
-import ipdb
+import API.api as api
+import API.emoji as emoji
+import API.buttonConfig as BC
+from core.classes import *
 
 
-ongoing_commands = {}
-specific_channel_id = 1131497952918110299
-use_channel_link = f"https://discord.com/channels/953292249763053569/1131497952918110299"
+on_going_commands = {}
 
 class Audience_game(cog_extension):
      
@@ -348,140 +341,132 @@ class Audience_game(cog_extension):
         # 成功修改訊息 - 群組
         await output_channel.send(f'{ctx.author.nick} 已將 {member.nick} 之{side}區段改為{seg}')
 
-                            
+    @is_in_channel(1131497952918110299)
     @commands.command()
     async def 報名(self,ctx, member: discord.Member = None):
         def check(msg):
             return msg.channel.type == discord.ChannelType.private and msg.author == ctx.author
 
-        if ctx.channel.id == specific_channel_id :
-        
-            dc_commands = ctx.author.id
-            channel_send = await ctx.author.create_dm()
+        dc_commands = ctx.author.id
+        channel_send = await ctx.author.create_dm()
 
-            # 如果已有執行中的 "!報名" 則不執行
-            if dc_commands in ongoing_commands:
-                await channel_send.send(f"還有正在進行中的{ongoing_commands[dc_commands]}要先完成喔{emoji.get_emoji('cute')}")
-                return 
+        # 如果已有執行中的 "!報名" 則不執行
+        if dc_commands in on_going_commands:
+            await channel_send.send(f"還有正在進行中的{on_going_commands[dc_commands]}要先完成喔{emoji.get_emoji('cute')}")
+            return 
 
-            try :
-                # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
-                ongoing_commands[dc_commands] = "報名"
+        try :
+            # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
+            on_going_commands[dc_commands] = "報名"
 
-                # 如果 member沒有覆值，則抓取發出指令人的dc_id、使用命令者的暱稱
-                if member is None: 
-                    dc_id = ctx.author.id
-                    nick_name = ctx.author.nick if ctx.author.nick else ctx.author.name
+            # 如果 member沒有覆值，則抓取發出指令人的dc_id、使用命令者的暱稱
+            if member is None: 
+                dc_id = ctx.author.id
+                nick_name = ctx.author.nick if ctx.author.nick else ctx.author.name
 
-                # 如果用戶有標記別人
-                else:   
-                    # dc_id為member(被@的人)的id
-                    dc_id = member.id
-                    # nick_name 為member(被@的人)的暱稱
-                    nick_name = member.nick if member.nick else member.name
+            # 如果用戶有標記別人
+            else:   
+                # dc_id為member(被@的人)的id
+                dc_id = member.id
+                # nick_name 為member(被@的人)的暱稱
+                nick_name = member.nick if member.nick else member.name
 
-                    # 詢問指令發送者要查詢的帳號和密碼
-                    await channel_send.send(f"請輸入 {member.mention} 的帳號：")
-                    account_message = await self.bot.wait_for('message', check=check)
-                    account = account_message.content
+                # 詢問指令發送者要查詢的帳號和密碼
+                await channel_send.send(f"請輸入 {member.mention} 的帳號：")
+                account_message = await self.bot.wait_for('message', check=check)
+                account = account_message.content
 
-                    await channel_send.send(f"請輸入 {member.mention} 的密碼：")
-                    password_message = await self.bot.wait_for('message', check=check)
-                    password = password_message.content
+                await channel_send.send(f"請輸入 {member.mention} 的密碼：")
+                password_message = await self.bot.wait_for('message', check=check)
+                password = password_message.content
 
-                    # 在這裡，你可以使用帳號和密碼去查詢你的資料庫並進行操作
-                    # isDCIdxTheSameACPW(data)，並且它會返回是否成功
-                    queryData = {
-                        'account':account,
-                        'password':password,
-                        'DCidx':str(dc_id),
-                    }
-                    state, result = api.isDCIdxTheSameACPW(queryData)
+                # 在這裡，你可以使用帳號和密碼去查詢你的資料庫並進行操作
+                # isDCIdxTheSameACPW(data)，並且它會返回是否成功
+                queryData = {
+                    'account':account,
+                    'password':password,
+                    'DCidx':str(dc_id),
+                }
+                state, result = api.isDCIdxTheSameACPW(queryData)
 
-                    # 如果成功，你可以讓機器人發送一條消息
-                    if result:
-                        await channel_send.send(f"{member.mention} 身分確認成功 {emoji.get_emoji('cute')}")
-                    else:
-                        await channel_send.send(f"{member.mention} 的帳號密碼確認失敗，若有需要請重新於群組輸入'!報名'  {emoji.get_emoji('sad')}")
-                        return
-
-                # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
-                state, result = api.isUserExist(dc_id)
-
-                # 如果api正常運行(state == True)，則返回 id是否存在
-                check_dc_exist = result if state  else print("api 問題")
-                #check_dc_exist = False
-
-                # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
-                V_name,_ = await self.__get_name(nick_name)
-
-                # "#預約表單"的頻道ID
-                channel_id = 953324370355433562  
-                #小群頻道ID
-                #channel_id =1062284819846934618
-
-                # form_date,formatted_date: 表單日期(M/D),資料庫表單日期(Y/M/D)
-                form_date,formatted_date = await self.__formdate_info(channel_id)
-
-                # if dc_id存在(check_dc_exist == True)
-                if check_dc_exist : 
-                    # 本次已有報名資料：修改/不修改
-                    # 本次尚無報名資料：沿用/不沿用 
-                    await self.__exist_user_applygame(ctx,dc_id,V_name,form_date,formatted_date,channel_send)
-
+                # 如果成功，你可以讓機器人發送一條消息
+                if result:
+                    await channel_send.send(f"{member.mention} 身分確認成功 {emoji.get_emoji('cute')}")
                 else:
-                    # 如果 dc_id不存在，進行註冊過程
-                    await channel_send.send(f"歡迎新朋友報名觀眾場!!\n第一次報名前需要為你建立一個報名觀眾場的帳戶，請耐心填寫喔 {emoji.get_emoji('cute')}")
+                    await channel_send.send(f"{member.mention} 的帳號密碼確認失敗，若有需要請重新於群組輸入'!報名'  {emoji.get_emoji('sad')}")
+                    return
 
-                    # 規則同意聲明
-                    #規則連結
-                    channel_link = "https://discord.com/channels/953292249763053569/1106157183734911026"
-                    #小群規則
-                    #channel_link = "https://discord.com/channels/1004279686924353587/1004279805094666253" 
-                    buttons = [BC.create_button(label,settings) for label, settings in BC.buttonYN.items()]
-                    view = BC.ModelButtons(buttons)
-                    asyncio.create_task(channel_send.send(f'請先點擊連結{channel_link}並詳閱規則，未來若透過dc機器人報名觀眾場視同報名者同意遵守相關規則。', view=view))
-                    correct_message = await view.wait_for_click()
+            # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
+            state, result = api.isUserExist(dc_id)
 
-                    if correct_message == "Y" :  
-                        # 基本資訊 - 帳號密碼
-                        user_account, user_password = await self.__userInfo(ctx,channel_send)
-                        # createUser(account, password, DCidx) -> 將帳號密碼加進資料庫
-                        _, _ = api.createUser(user_account, user_password,dc_id)
-                        # 取得 userIdx
-                        _, UserIdx = api.getUserIdx(dc_id)
-                        # 基本資料 - 段位、區間、暱稱
-                        data_basic = await self.__basic_info(UserIdx,channel_send,nick_name)
-                        #createUserInfo(userIdx, highestHumanRank, highestHunterRank, humanSegment, hunterSegment, D5name, YTname) -> 將第五基本資料加進資料庫
-                        _, _ = api.createUserInfo(data_basic)
-                        await channel_send.send(f"恭喜你!帳戶成功建立啦，接著是觀眾場報名資料～gogo！ {emoji.get_emoji('gogo')}\np.s.未來報名可選擇沿用之前的報名資料喔 {emoji.get_emoji('cute')}")
+            # 如果api正常運行(state == True)，則返回 id是否存在
+            check_dc_exist = result if state  else print("api 問題")
+            #check_dc_exist = False
 
-                        # 觀眾場資訊
-                        data_reg = await self.__regist_info(ctx,UserIdx,formatted_date,channel_send)
-                        # 'userIdx',殿堂,區選,時段,監管,求生,表單日期,備註,報名時間
-                        _, _ = api.applyGame(data_reg)
+            # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
+            V_name,_ = await self.__get_name(nick_name)
 
-                        await channel_send.send(f"謝謝你的熱情參與，已為你報名{form_date}觀眾場 {emoji.get_emoji('cute')}")
-                        # 輸出本次報名資料供確定
-                        output_str = await self.__print_outcome(data_reg,form_date,V_name)
-                        await channel_send.send(output_str)
+            # "#預約表單"的頻道ID
+            channel_id = 953324370355433562  
+            #小群頻道ID
+            #channel_id =1062284819846934618
 
-                    elif correct_message == "N" :
-                        await channel_send.send(f'若日後同意遵守規則歡迎再次報名 {emoji.get_emoji("cute")}')
+            # form_date,formatted_date: 表單日期(M/D),資料庫表單日期(Y/M/D)
+            form_date,formatted_date = await self.__formdate_info(channel_id)
 
-            finally:
-                del ongoing_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
-        else :
-            sent_message = await ctx.channel.send(content = f"親~要到這裡輸入指令喔~{use_channel_link}")
-            await asyncio.sleep(1)
-            await ctx.message.delete()
-            await asyncio.sleep(5)
-            await sent_message.delete()         
+            # if dc_id存在(check_dc_exist == True)
+            if check_dc_exist : 
+                # 本次已有報名資料：修改/不修改
+                # 本次尚無報名資料：沿用/不沿用 
+                await self.__exist_user_applygame(ctx,dc_id,V_name,form_date,formatted_date,channel_send)
+
+            else:
+                # 如果 dc_id不存在，進行註冊過程
+                await channel_send.send(f"歡迎新朋友報名觀眾場!!\n第一次報名前需要為你建立一個報名觀眾場的帳戶，請耐心填寫喔 {emoji.get_emoji('cute')}")
+
+                # 規則同意聲明
+                #規則連結
+                channel_link = "<#1106157183734911026>"
+                #小群規則
+                #channel_link = "<#1004279805094666253>" 
+                buttons = [BC.create_button(label,settings) for label, settings in BC.buttonYN.items()]
+                view = BC.ModelButtons(buttons)
+                asyncio.create_task(channel_send.send(f'請先點擊連結{channel_link}並詳閱規則，未來若透過dc機器人報名觀眾場視同報名者同意遵守相關規則。', view=view))
+                correct_message = await view.wait_for_click()
+
+                if correct_message == "Y" :  
+                    # 基本資訊 - 帳號密碼
+                    user_account, user_password = await self.__userInfo(ctx,channel_send)
+                    # createUser(account, password, DCidx) -> 將帳號密碼加進資料庫
+                    _, _ = api.createUser(user_account, user_password,dc_id)
+                    # 取得 userIdx
+                    _, UserIdx = api.getUserIdx(dc_id)
+                    # 基本資料 - 段位、區間、暱稱
+                    data_basic = await self.__basic_info(UserIdx,channel_send,nick_name)
+                    #createUserInfo(userIdx, highestHumanRank, highestHunterRank, humanSegment, hunterSegment, D5name, YTname) -> 將第五基本資料加進資料庫
+                    _, _ = api.createUserInfo(data_basic)
+                    await channel_send.send(f"恭喜你!帳戶成功建立啦，接著是觀眾場報名資料～gogo！ {emoji.get_emoji('gogo')}\np.s.未來報名可選擇沿用之前的報名資料喔 {emoji.get_emoji('cute')}")
+
+                    # 觀眾場資訊
+                    data_reg = await self.__regist_info(ctx,UserIdx,formatted_date,channel_send)
+                    # 'userIdx',殿堂,區選,時段,監管,求生,表單日期,備註,報名時間
+                    _, _ = api.applyGame(data_reg)
+
+                    await channel_send.send(f"謝謝你的熱情參與，已為你報名{form_date}觀眾場 {emoji.get_emoji('cute')}")
+                    # 輸出本次報名資料供確定
+                    output_str = await self.__print_outcome(data_reg,form_date,V_name)
+                    await channel_send.send(output_str)
+
+                elif correct_message == "N" :
+                    await channel_send.send(f'若日後同意遵守規則歡迎再次報名 {emoji.get_emoji("cute")}')
+
+        finally:
+            del on_going_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
             
     @commands.command()
-    async def 區段(self,ctx):
+    async def 區段(self,ctx:commands.Context):
 
-        def check(msg):
+        def check(msg:discord.Message):
             return msg.channel.type == discord.ChannelType.private and msg.author == ctx.author
 
         await ctx.message.delete()
@@ -521,174 +506,43 @@ class Audience_game(cog_extension):
                 await self.__updateSeg(ctx,side,dc_id,UserIdx,channel_send)
 
         else :
-            sent_message = await ctx.send(f"非YT管理員不得修改區段喔 {emoji.get_emoji('cute')}")
-            await asyncio.sleep(5)
-            await sent_message.delete()      
-
+            sent_message = await ctx.send(f"非YT管理員不得修改區段喔 {emoji.get_emoji('cute')}",delete_after=5)
+    @is_in_channel(1131497952918110299)
     @commands.command()
-    async def 取消報名(self,ctx, member: discord.Member = None):
-        def check(msg):
+    async def 取消報名(self,ctx:commands.Context, member: discord.Member = None):
+        def check(msg:discord.Message):
             return msg.channel.type == discord.ChannelType.private and msg.author == ctx.author
 
-        if ctx.channel.id == specific_channel_id :
-        
-            dc_commands = ctx.author.id
-            channel_send = await ctx.author.create_dm()
+        dc_commands = ctx.author.id
+        channel_send = await ctx.author.create_dm()
 
-            # 如果已有執行中的 "!取消報名" 則不執行
-            if dc_commands in ongoing_commands:
-                await channel_send.send(f"還有正在進行中的{ongoing_commands[dc_commands]}要先完成喔{emoji.get_emoji('cute')}")
-                return 
-      
-            try :
-                # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
-                ongoing_commands[dc_commands] = "取消報名"
+        # 如果已有執行中的 "!取消報名" 則不執行
+        if dc_commands in on_going_commands:
+            await channel_send.send(f"還有正在進行中的{on_going_commands[dc_commands]}要先完成喔{emoji.get_emoji('cute')}")
+            return 
+    
+        try :
+            # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
+            on_going_commands[dc_commands] = "取消報名"
 
-                # 如果 member沒有覆值，則抓取發出指令人的dc_id、使用命令者的暱稱
-                if member is None: 
-                    dc_id = ctx.author.id
-                    nick_name = ctx.author.nick if ctx.author.nick else ctx.author.name
+            # 如果 member沒有覆值，則抓取發出指令人的dc_id、使用命令者的暱稱
+            if member is None: 
+                dc_id = ctx.author.id
+                nick_name = ctx.author.nick if ctx.author.nick else ctx.author.name
 
-                # 如果用戶有標記別人
-                else:   
-                    # dc_id為member(被@的人)的id
-                    dc_id = member.id
-                    # nick_name 為member(被@的人)的暱稱
-                    nick_name = member.nick if member.nick else member.name
+            # 如果用戶有標記別人
+            else:   
+                # dc_id為member(被@的人)的id
+                dc_id = member.id
+                # nick_name 為member(被@的人)的暱稱
+                nick_name = member.nick if member.nick else member.name
 
-                    # 詢問指令發送者要查詢的帳號和密碼
-                    await channel_send.send(f"請輸入 {member.mention} 的帳號：")
-                    account_message = await self.bot.wait_for('message', check=check)
-                    account = account_message.content
+                # 詢問指令發送者要查詢的帳號和密碼
+                await channel_send.send(f"請輸入 {member.mention} 的帳號：")
+                account_message = await self.bot.wait_for('message', check=check)
+                account = account_message.content
 
-                    await channel_send.send(f"請輸入 {member.mention} 的密碼：")
-                    password_message = await self.bot.wait_for('message', check=check)
-                    password = password_message.content
-
-                    # 在這裡，你可以使用帳號和密碼去查詢你的資料庫並進行操作
-                    # isDCIdxTheSameACPW(data)，並且它會返回是否成功
-                    queryData = {
-                        'account':account,
-                        'password':password,
-                        'DCidx':str(dc_id),
-                    }
-                    state, result = api.isDCIdxTheSameACPW(queryData)
-
-                    # 如果成功，你可以讓機器人發送一條消息
-                    if result:
-                        await channel_send.send(f"{member.mention} 身分確認成功 {emoji.get_emoji('cute')}")
-                    else:
-                        await channel_send.send(f"{member.mention} 的帳號密碼確認失敗，若有需要請重新於群組輸入'!取消報名'  {emoji.get_emoji('sad')}")
-                        return
-
-                # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
-                state, result = api.isUserExist(dc_id)
-                # 如果api正常運行(state == True)，則返回 id是否存在
-                check_dc_exist = result if state  else print("api 問題")
-                #check_dc_exist = False
-
-                # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
-                V_name,_ = await self.__get_name(nick_name)
-
-                # "#預約表單"的頻道ID
-                channel_id = 953324370355433562  
-                #小群頻道ID
-                #channel_id =1062284819846934618
-
-                # form_date,formatted_date: 表單日期(M/D),資料庫表單日期(Y/M/D)
-                form_date,formatted_date = await self.__formdate_info(channel_id)
-
-                # if dc_id存在(check_dc_exist == True)
-                if check_dc_exist : 
-                    # getUserIdx - dc_id 抓取 UserIdx
-                    _, UserIdx = api.getUserIdx(dc_id)
-                    # checkSameD5name - UserIdx 抓取 資料庫第五暱稱
-                    _, D5name = api.checkSameD5name(UserIdx) # 資料庫內第五暱稱
-
-                    # 比對第五名稱是否相同(群組暱稱-V_name vs 資料庫-D5name)，如果不相同，修改資料庫第五暱稱
-                    if V_name != D5name :
-                        # updateD5name (UserIdx,目前第五暱稱) -> 修改資料庫第五暱稱為目前第五暱稱
-                        _, _ = api.updateD5name(UserIdx, V_name) 
-
-                    # 提取最近一次的觀眾場資料 ('殿堂', '區選', '時段','備註','求生報名','監管報名')
-                    _,ex_data = api.getLastApplyInfo(UserIdx)
-
-                    # isApply - date_isApply -> None or updateIdx
-                    _,date_isApply = api.isApply(UserIdx, formatted_date)
-
-                    # not date_isApply is None : 當次已有報名資料 -> 是否修改本次報名資料
-                    if not date_isApply is None: 
-                        # 輸出本次報名資料供確定
-                        output_str = await self.__print_outcome(ex_data,form_date,V_name)
-                        await channel_send.send(f'本次報名資料：{output_str}')
-
-                        buttons = [BC.create_button(label,settings) for label, settings in BC.buttonYN.items()]
-                        view = BC.ModelButtons(buttons)
-                        asyncio.create_task(channel_send.send(f'是否刪除本次報名資料?', view=view))
-                        ans = await view.wait_for_click()
-
-                        # 不刪除本次資料(ans == "N"):break
-                        # 刪除本次資料(ans == "Y"):deleteApply(UserIdx, formatted_date)
-                        if ans == "N" :
-                            await channel_send.send(f"謝謝你的熱情參與，已為你保留{form_date}觀眾場之報名 {emoji.get_emoji('cute')}")
-                        elif ans == "Y" :
-                            # 刪除觀眾場資訊 - deleteApply(UserIdx, formatted_date)
-                            _,_ = api.deleteApply(UserIdx, formatted_date)
-                            await channel_send.send(f"已為你刪除{form_date}觀眾場之報名 {emoji.get_emoji('sad')}")
-
-                    # 當次尚未有報名資料
-                    else:
-                        await channel_send.send(f"你還沒有報名{form_date}觀眾場喔 {emoji.get_emoji('cute')}")
-                else :
-                    await channel_send.send(f"你尚未創立觀眾場帳號喔 {emoji.get_emoji('cute')}")
-
-            finally:
-                del ongoing_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
-        else :
-            sent_message = await ctx.channel.send(content = f"親~要到這裡輸入指令喔~{use_channel_link}")
-            await asyncio.sleep(1)
-            await ctx.message.delete()
-            await asyncio.sleep(5)
-            await sent_message.delete()         
-
-    @commands.command()
-    async def 修改(self,ctx, member: discord.Member = None):
-        def check(msg):
-            return msg.channel.type == discord.ChannelType.private and msg.author == ctx.author
-
-        if ctx.channel.id == specific_channel_id :
-            
-            dc_commands = ctx.author.id
-            channel_send = await ctx.author.create_dm()
-
-            # 如果已有執行中的 "!報名" 則不執行
-            if dc_commands in ongoing_commands:
-                await channel_send.send(f"還有正在進行中的{ongoing_commands[dc_commands]}要先完成喔{emoji.get_emoji('cute')}")
-                return 
-
-            try :
-                # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
-                ongoing_commands[dc_commands] = "修改"
-
-                # 如果 member沒有覆值，則抓取發出指令人的dc_id、使用命令者的暱稱
-                if member is None: 
-                    dc_id = ctx.author.id
-                    nick_name = ctx.author.nick if ctx.author.nick else ctx.author.name
-                    _,account = api.getAccountFromDCidx(dc_id)                
-
-                # 如果用戶有標記別人
-                else:   
-                    # dc_id為member(被@的人)的id
-                    dc_id = member.id
-                    # nick_name 為member(被@的人)的暱稱
-                    nick_name = member.nick if member.nick else member.name
-
-                    # 詢問指令發送者要查詢的帳號和密碼
-                    await channel_send.send(f"請輸入 {nick_name} 的帳號：")
-                    account_message = await self.bot.wait_for('message', check=check)
-                    account = account_message.content
-
-                await channel_send.send(f"請輸入 {nick_name} 的密碼：")
+                await channel_send.send(f"請輸入 {member.mention} 的密碼：")
                 password_message = await self.bot.wait_for('message', check=check)
                 password = password_message.content
 
@@ -703,150 +557,247 @@ class Audience_game(cog_extension):
 
                 # 如果成功，你可以讓機器人發送一條消息
                 if result:
-                    await channel_send.send(f"{nick_name} 身分確認成功 {emoji.get_emoji('cute')}")
+                    await channel_send.send(f"{member.mention} 身分確認成功 {emoji.get_emoji('cute')}")
                 else:
-                    await channel_send.send(f"{nick_name} 的帳號密碼確認失敗，若有需要請重新於群組輸入'!修改'  {emoji.get_emoji('sad')}")
+                    await channel_send.send(f"{member.mention} 的帳號密碼確認失敗，若有需要請重新於群組輸入'!取消報名'  {emoji.get_emoji('sad')}")
                     return
 
-                # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
-                state, result = api.isUserExist(dc_id)
-                # 如果api正常運行(state == True)，則返回 id是否存在
-                check_dc_exist = result if state  else print("api 問題")
-                #check_dc_exist = False
+            # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
+            state, result = api.isUserExist(dc_id)
+            # 如果api正常運行(state == True)，則返回 id是否存在
+            check_dc_exist = result if state  else print("api 問題")
+            #check_dc_exist = False
 
-                # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
-                V_name,_ = await self.__get_name(nick_name)
+            # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
+            V_name,_ = await self.__get_name(nick_name)
 
+            # "#預約表單"的頻道ID
+            channel_id = 953324370355433562  
+            #小群頻道ID
+            #channel_id =1062284819846934618
 
-                # if dc_id存在(check_dc_exist == True)
-                if check_dc_exist : 
-                    # getUserIdx - dc_id 抓取 UserIdx
-                    _, UserIdx = api.getUserIdx(dc_id)
-                    # checkSameD5name - UserIdx 抓取 資料庫第五暱稱
-                    _, D5name = api.checkSameD5name(UserIdx) # 資料庫內第五暱稱
+            # form_date,formatted_date: 表單日期(M/D),資料庫表單日期(Y/M/D)
+            form_date,formatted_date = await self.__formdate_info(channel_id)
 
-                    # 比對第五名稱是否相同(群組暱稱-V_name vs 資料庫-D5name)，如果不相同，修改資料庫第五暱稱
-                    if V_name != D5name :
-                        # updateD5name (UserIdx,目前第五暱稱) -> 修改資料庫第五暱稱為目前第五暱稱
-                        _, _ = api.updateD5name(UserIdx, V_name) 
+            # if dc_id存在(check_dc_exist == True)
+            if check_dc_exist : 
+                # getUserIdx - dc_id 抓取 UserIdx
+                _, UserIdx = api.getUserIdx(dc_id)
+                # checkSameD5name - UserIdx 抓取 資料庫第五暱稱
+                _, D5name = api.checkSameD5name(UserIdx) # 資料庫內第五暱稱
 
-                    buttons = [BC.create_button(label,settings) for label, settings in BC.buttonRank.items()]
+                # 比對第五名稱是否相同(群組暱稱-V_name vs 資料庫-D5name)，如果不相同，修改資料庫第五暱稱
+                if V_name != D5name :
+                    # updateD5name (UserIdx,目前第五暱稱) -> 修改資料庫第五暱稱為目前第五暱稱
+                    _, _ = api.updateD5name(UserIdx, V_name) 
+
+                # 提取最近一次的觀眾場資料 ('殿堂', '區選', '時段','備註','求生報名','監管報名')
+                _,ex_data = api.getLastApplyInfo(UserIdx)
+
+                # isApply - date_isApply -> None or updateIdx
+                _,date_isApply = api.isApply(UserIdx, formatted_date)
+
+                # not date_isApply is None : 當次已有報名資料 -> 是否修改本次報名資料
+                if not date_isApply is None: 
+                    # 輸出本次報名資料供確定
+                    output_str = await self.__print_outcome(ex_data,form_date,V_name)
+                    await channel_send.send(f'本次報名資料：{output_str}')
+
+                    buttons = [BC.create_button(label,settings) for label, settings in BC.buttonYN.items()]
                     view = BC.ModelButtons(buttons)
-                    asyncio.create_task(channel_send.send('請點選你的求生歷史最高段位', view=view))
-                    survivor_rank = await view.wait_for_click()
+                    asyncio.create_task(channel_send.send(f'是否刪除本次報名資料?', view=view))
+                    ans = await view.wait_for_click()
 
-                    _,_ = api.updateRank(UserIdx,'human', survivor_rank)
+                    # 不刪除本次資料(ans == "N"):break
+                    # 刪除本次資料(ans == "Y"):deleteApply(UserIdx, formatted_date)
+                    if ans == "N" :
+                        await channel_send.send(f"謝謝你的熱情參與，已為你保留{form_date}觀眾場之報名 {emoji.get_emoji('cute')}")
+                    elif ans == "Y" :
+                        # 刪除觀眾場資訊 - deleteApply(UserIdx, formatted_date)
+                        _,_ = api.deleteApply(UserIdx, formatted_date)
+                        await channel_send.send(f"已為你刪除{form_date}觀眾場之報名 {emoji.get_emoji('sad')}")
 
-                    buttons = [BC.create_button(label,settings) for label, settings in BC.buttonRank.items()]
-                    view = BC.ModelButtons(buttons)
-                    asyncio.create_task(channel_send.send('請點選你的監管歷史最高段位', view=view))
-                    hunter_rank = await view.wait_for_click()
+                # 當次尚未有報名資料
+                else:
+                    await channel_send.send(f"你還沒有報名{form_date}觀眾場喔 {emoji.get_emoji('cute')}")
+            else :
+                await channel_send.send(f"你尚未創立觀眾場帳號喔 {emoji.get_emoji('cute')}")
 
-                    _,_ = api.updateRank(UserIdx,'hunter', hunter_rank)
-
-                    await channel_send.send(f"已將你的段位修改為：\n求生-{survivor_rank}；監管-{hunter_rank}\n恭喜恭喜～繼續加油喔　{emoji.get_emoji('gogo')}")
-
-                else :
-                    await channel_send.send(f"你尚未創立觀眾場帳號喔 {emoji.get_emoji('cute')}")
-
-            finally:
-                del ongoing_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
-        else :
-            sent_message = await ctx.channel.send(content = f"親~要到這裡輸入指令喔~{use_channel_link}")
-            await asyncio.sleep(1)
-            await ctx.message.delete()
-            await asyncio.sleep(5)
-            await sent_message.delete()         
+        finally:
+            del on_going_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
 
     @commands.command()
-    async def 幾區(self,ctx):
+    async def 修改(self,ctx:commands.Context, member: discord.Member = None):
+        def check(msg:discord.Message):
+            return msg.channel.type == discord.ChannelType.private and msg.author == ctx.author
 
-        if ctx.channel.id == specific_channel_id :
- 
-            dc_commands = ctx.author.id
-            channel_send = await ctx.author.create_dm()
+        dc_commands = ctx.author.id
+        channel_send = await ctx.author.create_dm()
 
-            # 如果已有執行中的 "!報名" 則不執行
-            if dc_commands in ongoing_commands:
-                await channel_send.send(f"還有正在進行中的{ongoing_commands[dc_commands]}要先完成喔 {emoji.get_emoji('cute')}")
-                return 
+        # 如果已有執行中的 "!報名" 則不執行
+        if dc_commands in on_going_commands:
+            await channel_send.send(f"還有正在進行中的{on_going_commands[dc_commands]}要先完成喔{emoji.get_emoji('cute')}")
+            return 
 
-            try :
-                # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
-                ongoing_commands[dc_commands] = "幾區"
+        try :
+            # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
+            on_going_commands[dc_commands] = "修改"
 
+            # 如果 member沒有覆值，則抓取發出指令人的dc_id、使用命令者的暱稱
+            if member is None: 
                 dc_id = ctx.author.id
                 nick_name = ctx.author.nick if ctx.author.nick else ctx.author.name
+                _,account = api.getAccountFromDCidx(dc_id)                
 
-                # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
-                state, result = api.isUserExist(dc_id)
-                # 如果api正常運行(state == True)，則返回 id是否存在
-                check_dc_exist = result if state  else print("api 問題")
-                #check_dc_exist = False
+            # 如果用戶有標記別人
+            else:   
+                # dc_id為member(被@的人)的id
+                dc_id = member.id
+                # nick_name 為member(被@的人)的暱稱
+                nick_name = member.nick if member.nick else member.name
 
-                # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
-                V_name,_ = await self.__get_name(nick_name)
+                # 詢問指令發送者要查詢的帳號和密碼
+                await channel_send.send(f"請輸入 {nick_name} 的帳號：")
+                account_message = await self.bot.wait_for('message', check=check)
+                account = account_message.content
 
-                # if dc_id存在(check_dc_exist == True)
-                if check_dc_exist : 
-                    # getUserIdx - dc_id 抓取 UserIdx
-                    _, UserIdx = api.getUserIdx(dc_id)
-                    # checkSameD5name - UserIdx 抓取 資料庫第五暱稱
-                    _, D5name = api.checkSameD5name(UserIdx) # 資料庫內第五暱稱
+            await channel_send.send(f"請輸入 {nick_name} 的密碼：")
+            password_message = await self.bot.wait_for('message', check=check)
+            password = password_message.content
 
-                    # 比對第五名稱是否相同(群組暱稱-V_name vs 資料庫-D5name)，如果不相同，修改資料庫第五暱稱
-                    if V_name != D5name :
-                        # updateD5name (UserIdx,目前第五暱稱) -> 修改資料庫第五暱稱為目前第五暱稱
-                        _, _ = api.updateD5name(UserIdx, V_name) 
+            # 在這裡，你可以使用帳號和密碼去查詢你的資料庫並進行操作
+            # isDCIdxTheSameACPW(data)，並且它會返回是否成功
+            queryData = {
+                'account':account,
+                'password':password,
+                'DCidx':str(dc_id),
+            }
+            state, result = api.isDCIdxTheSameACPW(queryData)
 
-                    _, result = api.getSegmentFromUserIdx(UserIdx)
+            # 如果成功，你可以讓機器人發送一條消息
+            if result:
+                await channel_send.send(f"{nick_name} 身分確認成功 {emoji.get_emoji('cute')}")
+            else:
+                await channel_send.send(f"{nick_name} 的帳號密碼確認失敗，若有需要請重新於群組輸入'!修改'  {emoji.get_emoji('sad')}")
+                return
 
-                    buttons = [BC.create_button(label,settings) for label, settings in BC.buttonSide.items()]
-                    view = BC.ModelButtons(buttons)
-                    asyncio.create_task(channel_send.send('查詢區段之陣營：', view=view))
-                    reg_side = await view.wait_for_click()
+            # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
+            state, result = api.isUserExist(dc_id)
+            # 如果api正常運行(state == True)，則返回 id是否存在
+            check_dc_exist = result if state  else print("api 問題")
+            #check_dc_exist = False
 
-                    if reg_side == '求生' :
-                        await channel_send.send(f"{D5name}的求生區段為：{result['humanSegment']} {emoji.get_emoji('gogo')}")
-                    elif reg_side == '監管' :
-                        await channel_send.send(f"{D5name}的監管區段為：{result['hunterSegment']} {emoji.get_emoji('gogo')}")
-                    elif reg_side == '雙陣營' :
-                        await channel_send.send(f"{D5name}的求生區段為：{result['humanSegment']}\n{D5name}的監管區段為：{result['hunterSegment']}")                
+            # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
+            V_name,_ = await self.__get_name(nick_name)
 
-                else :
-                    await channel_send.send(f"你尚未創立觀眾場帳號喔 {emoji.get_emoji('cute')}")
 
-            finally:
-                del ongoing_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
-        else :
-            sent_message = await ctx.channel.send(content = f"親~要到這裡輸入指令喔~{use_channel_link}")
-            await asyncio.sleep(1)
-            await ctx.message.delete()
-            await asyncio.sleep(5)
-            await sent_message.delete()
-            
-    @commands.command()
-    async def 救救我啊我救我(self,ctx):
-        
-        if ctx.channel.id == specific_channel_id :
- 
-            dc_commands = ctx.author.id
-            channel_send = await ctx.author.create_dm()
+            # if dc_id存在(check_dc_exist == True)
+            if check_dc_exist : 
+                # getUserIdx - dc_id 抓取 UserIdx
+                _, UserIdx = api.getUserIdx(dc_id)
+                # checkSameD5name - UserIdx 抓取 資料庫第五暱稱
+                _, D5name = api.checkSameD5name(UserIdx) # 資料庫內第五暱稱
 
-            # 如果已有執行中的 "!報名" 則不執行
-            if dc_commands in ongoing_commands:
-                del ongoing_commands[dc_commands]
-                await channel_send.send(f"可以使用其他指令了喔 {emoji.get_emoji('cute')}") 
+                # 比對第五名稱是否相同(群組暱稱-V_name vs 資料庫-D5name)，如果不相同，修改資料庫第五暱稱
+                if V_name != D5name :
+                    # updateD5name (UserIdx,目前第五暱稱) -> 修改資料庫第五暱稱為目前第五暱稱
+                    _, _ = api.updateD5name(UserIdx, V_name) 
+
+                buttons = [BC.create_button(label,settings) for label, settings in BC.buttonRank.items()]
+                view = BC.ModelButtons(buttons)
+                asyncio.create_task(channel_send.send('請點選你的求生歷史最高段位', view=view))
+                survivor_rank = await view.wait_for_click()
+
+                _,_ = api.updateRank(UserIdx,'human', survivor_rank)
+
+                buttons = [BC.create_button(label,settings) for label, settings in BC.buttonRank.items()]
+                view = BC.ModelButtons(buttons)
+                asyncio.create_task(channel_send.send('請點選你的監管歷史最高段位', view=view))
+                hunter_rank = await view.wait_for_click()
+
+                _,_ = api.updateRank(UserIdx,'hunter', hunter_rank)
+
+                await channel_send.send(f"已將你的段位修改為：\n求生-{survivor_rank}；監管-{hunter_rank}\n恭喜恭喜～繼續加油喔　{emoji.get_emoji('gogo')}")
 
             else :
-                await channel_send.send(f"沒有進行中的指令喔 {emoji.get_emoji('cute')}")
+                await channel_send.send(f"你尚未創立觀眾場帳號喔 {emoji.get_emoji('cute')}")
+
+        finally:
+            del on_going_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
+
+    @is_in_channel(1131497952918110299)
+    @commands.command()
+    async def 幾區(self,ctx:commands.Context):
+
+        dc_commands = ctx.author.id
+        channel_send = await ctx.author.create_dm()
+
+        # 如果已有執行中的 "!報名" 則不執行
+        if dc_commands in on_going_commands:
+            await channel_send.send(f"還有正在進行中的{on_going_commands[dc_commands]}要先完成喔 {emoji.get_emoji('cute')}")
+            return 
+
+        try :
+            # 標記此用戶有一個進行中的命令 -> 防止重複運行此指令
+            on_going_commands[dc_commands] = "幾區"
+
+            dc_id = ctx.author.id
+            nick_name = ctx.author.nick if ctx.author.nick else ctx.author.name
+
+            # 檢查資料庫內是否已存在同id之dc資料 - return api狀態,id是否存在
+            state, result = api.isUserExist(dc_id)
+            # 如果api正常運行(state == True)，則返回 id是否存在
+            check_dc_exist = result if state  else print("api 問題")
+            #check_dc_exist = False
+
+            # 目前第五暱稱,目前yt暱稱 = await self.__get_name(ctx) 
+            V_name,_ = await self.__get_name(nick_name)
+
+            # if dc_id存在(check_dc_exist == True)
+            if check_dc_exist : 
+                # getUserIdx - dc_id 抓取 UserIdx
+                _, UserIdx = api.getUserIdx(dc_id)
+                # checkSameD5name - UserIdx 抓取 資料庫第五暱稱
+                _, D5name = api.checkSameD5name(UserIdx) # 資料庫內第五暱稱
+
+                # 比對第五名稱是否相同(群組暱稱-V_name vs 資料庫-D5name)，如果不相同，修改資料庫第五暱稱
+                if V_name != D5name :
+                    # updateD5name (UserIdx,目前第五暱稱) -> 修改資料庫第五暱稱為目前第五暱稱
+                    _, _ = api.updateD5name(UserIdx, V_name) 
+
+                _, result = api.getSegmentFromUserIdx(UserIdx)
+
+                buttons = [BC.create_button(label,settings) for label, settings in BC.buttonSide.items()]
+                view = BC.ModelButtons(buttons)
+                asyncio.create_task(channel_send.send('查詢區段之陣營：', view=view))
+                reg_side = await view.wait_for_click()
+
+                if reg_side == '求生' :
+                    await channel_send.send(f"{D5name}的求生區段為：{result['humanSegment']} {emoji.get_emoji('gogo')}")
+                elif reg_side == '監管' :
+                    await channel_send.send(f"{D5name}的監管區段為：{result['hunterSegment']} {emoji.get_emoji('gogo')}")
+                elif reg_side == '雙陣營' :
+                    await channel_send.send(f"{D5name}的求生區段為：{result['humanSegment']}\n{D5name}的監管區段為：{result['hunterSegment']}")                
+
+            else :
+                await channel_send.send(f"你尚未創立觀眾場帳號喔 {emoji.get_emoji('cute')}")
+
+        finally:
+            del on_going_commands[dc_commands]  # 無論命令是否成功完成，都確保移除此條目
+            
+    @commands.command()
+    async def 救救我啊我救我(self,ctx:commands.Context):
+        dc_commands = ctx.author.id
+        channel_send = await ctx.author.create_dm()
+
+        # 如果已有執行中的 "!報名" 則不執行
+        if dc_commands in on_going_commands:
+            del on_going_commands[dc_commands]
+            await channel_send.send(f"可以使用其他指令了喔 {emoji.get_emoji('cute')}") 
+
         else :
-            sent_message = await ctx.channel.send(content = f"親~要到這裡輸入指令喔~{use_channel_link}")
-            await asyncio.sleep(1)
-            await ctx.message.delete()
-            await asyncio.sleep(5)
-            await sent_message.delete()                 
+            await channel_send.send(f"沒有進行中的指令喔 {emoji.get_emoji('cute')}")
                                     
-async def setup(bot) :
+async def setup(bot:commands.Bot) :
     await bot.add_cog(Audience_game(bot))
 

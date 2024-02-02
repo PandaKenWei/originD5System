@@ -2,14 +2,8 @@ import discord
 from discord.ext import commands
 from datetime import datetime, timedelta, time
 import asyncio
-import os
-import sys
 from ID_Config import Channel_ID, Identity_ID
-sys.path.insert(0, os.getcwd()+"/API")
-import buttonConfig as BC
-import emoji
-
-import ipdb
+import API.emoji as emoji
 
 class SignInCog(commands.Cog):
     def __init__(self, bot):

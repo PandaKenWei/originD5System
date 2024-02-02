@@ -1,7 +1,5 @@
-from enum import Enum
 import discord
 from discord import ButtonStyle as BS
-import ipdb
 import asyncio
 #await channel_send.send("請輸入你的求生歷史最高段位：\n1 - 一階；2 - 二階；3 - 三階；4 - 四階\n5 - 五階；6 - 六階；7 - 七階；巔7 - 巔峰七階")
 buttonTest = {
