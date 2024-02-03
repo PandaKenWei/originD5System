@@ -1,12 +1,9 @@
 import requests
-import pandas as pd
-import json
 import requests
 from Crypto.Cipher import AES
 from Crypto.Random import get_random_bytes
 from Crypto.Util.Padding import pad
 from base64 import b64encode
-import ipdb
 
 '''
 isRoleExistFromDCidxAndIdentity : 根據 DCidx 跟 identity 來檢查資料庫是否存在這位「職位者」

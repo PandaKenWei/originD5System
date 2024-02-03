@@ -1,18 +1,10 @@
 import discord
 from discord.ext import commands
 from core.classes import cog_extension
-import gspread
-from google.oauth2 import service_account
-import datetime
-import pandas as pd
 import asyncio
 import random
-import os
-import sys
-sys.path.insert(0, os.getcwd()+"/API")
-import api
+import API.api as api
 import re
-import ipdb
 
 
 class test_fun(cog_extension):

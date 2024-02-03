@@ -11,9 +11,8 @@ import re
 import os
 import sys
 sys.path.insert(0, os.getcwd()+"/API")
-import buttonConfig as BC
-import emoji
-import manage
+import API.emoji as emoji
+import API.manage as manage
 from typing import Optional,Union
 import json
 
@@ -147,12 +146,12 @@ class dc_manager_tools(cog_extension):
     async def 封印解除(self, ctx, member: discord.Member):
         check_role = await self.__check_role(ctx)
         if check_role :  # 如果指令發送者有管理訊息的權限
-            mute_role = discord.utils.get(ctx.guild.roles, name="黑名單身分")  # 假設你已經建立了名為"Muted"的角色並設定了該角色無法在文字頻道中發送訊息或在語音頻道中發言
+            mute_role = discord.utils.get(ctx.guild.roles, name="黑名單身分")  # 假設你已經建立了名為"黑名單身分"的角色並設定了該角色無法在文字頻道中發送訊息或在語音頻道中發言
             try :
                 await member.remove_roles(mute_role)
             except :
                 ctx.send(f"他沒被封印!! {emoji.get_emoji('angry')}")
-            # Load the removed roles from the json file
+            # 從 json 檔加載原有的身分組
             with open('./removed_roles.json', 'r') as json_file:
                 data = json.load(json_file)
                 removed_roles = data.get(str(member.id))
@@ -161,7 +160,7 @@ class dc_manager_tools(cog_extension):
                         role = discord.utils.get(ctx.guild.roles, id=role_id)
                         if role:
                             await member.add_roles(role)
-                    del data[str(member.id)]  # remove the member from the data as their roles have been restored
+                    del data[str(member.id)]  # 將使用者移出儲存原身分組的資料
 
             # Save the updated data back to the json file
             with open('./removed_roles.json', 'w') as json_file:
@@ -173,7 +172,6 @@ class dc_manager_tools(cog_extension):
     
     @commands.command()
     async def 登記職務(self, ctx, member: discord.Member, addrole : discord.Role):
-        print(addrole)
         allowed_role = ['房管-主播級']
         user_roles = [role.name for role in ctx.author.roles]
         if any (role in user_roles for role in allowed_role) : # 如果指令發送者有管理訊息的權限
